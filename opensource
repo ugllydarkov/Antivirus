@@ -1,0 +1,84 @@
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+
+set PY=
+where py >nul 2>&1 && set PY=py -3
+if not defined PY where python >nul 2>&1 && set PY=python
+if not defined PY where python3 >nul 2>&1 && set PY=python3
+if not defined PY (
+    echo No Python found. Run install_python_and_add_to_path.bat first.
+    pause
+    exit /b 1
+)
+
+echo Building fullcleanantivirus (one exe, dark UI)...
+echo.
+
+"%PY%" -c "print('OK')" > build_log.txt 2>&1
+findstr /C:"OK" build_log.txt >nul 2>&1
+if errorlevel 1 (
+    where py >nul 2>&1 && (
+        py -3 -c "print('OK')" > build_log.txt 2>&1
+        findstr /C:"OK" build_log.txt >nul 2>&1
+        if not errorlevel 1 (set PY=py -3 & goto :build)
+    )
+    for %%v in (312 311 310 39 313) do (
+        if exist "%LOCALAPPDATA%\Programs\Python\Python%%v\python.exe" (
+            "%LOCALAPPDATA%\Programs\Python\Python%%v\python.exe" -c "print('OK')" > build_log.txt 2>&1
+            findstr /C:"OK" build_log.txt >nul 2>&1
+            if not errorlevel 1 (set "PY=%LOCALAPPDATA%\Programs\Python\Python%%v\python.exe" & goto :build)
+        )
+        if exist "C:\Python%%v\python.exe" (
+            "C:\Python%%v\python.exe" -c "print('OK')" > build_log.txt 2>&1
+            findstr /C:"OK" build_log.txt >nul 2>&1
+            if not errorlevel 1 (set "PY=C:\Python%%v\python.exe" & goto :build)
+        )
+    )
+    echo Python not found or Store stub. Run install_python_and_add_to_path.bat
+    pause
+    exit /b 1
+)
+
+:build
+echo %PY% | findstr /C:" " >nul 2>&1 && (
+    for /f "delims=" %%i in ('py -3 -c "import sys; print(sys.executable)" 2^>nul') do set "PY=%%i"
+)
+echo Using: %PY%
+echo.
+
+"%PY%" -m pip install pystray pillow -q 2>nul
+if not exist "fullcleanantivirus_icon.ico" (
+    echo Creating icon...
+    "%PY%" make_icon.py 2>nul
+)
+if not exist "shield_icon.png" (
+    "%PY%" create_shield_icon.py 2>nul
+)
+set ICON=
+if exist "fullcleanantivirus_icon.ico" set ICON=--icon "fullcleanantivirus_icon.ico"
+set ADDATA=
+if exist "shield_icon.png" set ADDATA=--add-data "shield_icon.png;."
+
+"%PY%" -c "import PyInstaller" 2>nul
+if errorlevel 1 (
+    echo Installing PyInstaller...
+    "%PY%" -m pip install pyinstaller -q
+)
+
+echo Running PyInstaller...
+"%PY%" -m PyInstaller --onefile --windowed --name "fullcleanantivirus" %ICON% %ADDATA% --clean fullcleanantivirus_one.py > build_log.txt 2>&1
+
+if errorlevel 1 (
+    type build_log.txt
+    echo Build failed.
+    pause
+    exit /b 1
+)
+
+echo.
+echo Done: dist\fullcleanantivirus.exe
+start "" "dist\fullcleanantivirus.exe"
+pause
+
+build.bat(use)

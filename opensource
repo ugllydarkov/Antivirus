@@ -81,4 +81,7 @@ echo Done: dist\fullcleanantivirus.exe
 start "" "dist\fullcleanantivirus.exe"
 pause
 
-build.bat(use)
+
+
+
+P.S build.bat(use)
